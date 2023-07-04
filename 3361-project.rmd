@@ -1,0 +1,143 @@
+---
+title: "3361 group project"
+author: "Alex, Paris, Sepehr, Wendi "
+date: "2023-07-04"
+output: html_document
+---
+
+
+we have loaded the packages we need, and also read in the data. The new packages we add here are for reading the excel file and change the y-asix into percentage format, which is the format of the paper used. 
+
+```{r}
+library(tidyverse)
+library(readxl) 
+library(patchwork) 
+library(stats)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(scales)
+```
+
+We are reading data in.
+
+one thing we noticed about is 
+```{r}
+Fig1data <- read_excel("~/desktop/HCP2 Data for Interns.xlsx", sheet = 2)
+Fig2data <- read_excel("~/desktop/HCP2 Data for Interns.xlsx", sheet = 3)
+Fig3data <- read_excel("~/desktop/HCP2 Data for Interns.xlsx", sheet = 4)
+
+```
+
+
+##Figure 1 
+###Figure 1B
+
+```{r}
+fig1data_mean <- Fig1data %>%
+  group_by(Cluster) %>% 
+  summarise(mean(Pref_UnpB), mean(Pref_Pun1),mean(Pref_Pun2), mean(Pref_Pun3), mean(Pref_Rev)) %>% 
+  pivot_longer(cols = starts_with("mean"), names_to = "pref", values_to = "value") %>% 
+  mutate(Cluster = recode(Cluster, "1" = "Compulsive", "2" = "Unaware", "3" = "Sensitive")) %>%
+  group_by(Cluster)
+
+fig1_new <- Fig1data %>%
+  mutate(Cluster = recode(Cluster, "1" = "Compulsive", "2" = "Unaware", "3" = "Sensitive")) %>%
+  group_by(Cluster)
+
+UnpB_aov1 <- aov(Pref_UnpB ~ Cluster, fig1_new)
+print(summary(UnpB_aov1))
+
+Pun1_aov1 <- aov(Pref_Pun1 ~ Cluster, fig1_new)
+print(summary(Pun1_aov1)) 
+
+Pun2_aov1 <- aov(Pref_Pun2 ~ Cluster, fig1_new)
+print(summary(Pun2_aov1)) 
+
+Pun3_aov1 <- aov(Pref_Pun3 ~ Cluster, fig1_new)
+print(summary(Pun3_aov1)) 
+
+Rev_aov1 <- aov(Pref_Rev ~ Cluster, fig1_new)
+print(summary(Rev_aov1)) 
+
+p_value <- c(0.401,0.00491,2e-16,2e-16,2e-16)
+
+fig1_p <- fig1data_mean %>%
+  mutate(p_value = c(0.401,0.00491,2e-16,2e-16,2e-16), asterisks = c(NA, "*", "*", "*","*"))
+```
+
+```{r}
+ggplot(fig1data_mean, aes(x = reorder(pref, match(pref, c("mean(Pref_UnpB)", "mean(Pref_Pun1)", "mean(Pref_Pun2)", "mean(Pref_Pun3)", "mean(Pref_Rev)"))), y = value, color = Cluster, group = Cluster)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Pref", y = "Value") +
+  scale_color_discrete() +
+  scale_y_continuous(limits = c(0, 1), labels = percent_format()) + 
+  geom_text(data = fig1_p,
+            aes(label = asterisks, size = 5))
+```
+After we ran the data, we ran into a little conundrum. we noticed that the actual data that we were given was labelled incorrectly. as such, we decided to double check the rest of the data - and we found the "Compulsive" and "Sensitive" label are exchanged. So we changed them back and redo the mutate cluster and then then line graph. 
+
+Also, we noticed that the asterisks were just above the dot and hard to see. so we decided to change the goem_text function a little bit. We searched on Google, and found the vjust function may help, as it adjust the asterisks away from the dot 
+```{r}
+
+fig1b <- ggplot(fig1data_mean, aes(x = reorder(pref, match(pref, c("mean(Pref_UnpB)", "mean(Pref_Pun1)", "mean(Pref_Pun2)", "mean(Pref_Pun3)", "mean(Pref_Rev)"))), y = value, color = Cluster, group = Cluster)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Pref", y = "Value") +
+  scale_color_discrete() +
+  scale_y_continuous(limits = c(0, 1), labels = percent_format()) +
+  geom_text(data = fig1_p,
+            aes(label = asterisks), vjust = -5)
+
+print(fig1b)
+```
+It actually got better when applied vjust to ggplot, but it did not match the figure we see in the paper, so keep modifying it. In addition, a warning message poped up to say that we were missing some values in the asterisks column. As some of the F test is not significant, so we put NA in the column, maybe the NA stuff caused this warning. 
+
+This time we went to y = 0.75 to find whether it works. And also use filter function to select asterisks into the goem_text, not all the values in the column. 
+
+```{r}
+fig1data_mean <- Fig1data %>%
+  group_by(Cluster) %>% 
+  summarise(mean(Pref_UnpB), mean(Pref_Pun1),mean(Pref_Pun2), mean(Pref_Pun3), mean(Pref_Rev)) %>% 
+  pivot_longer(cols = starts_with("mean"), names_to = "pref", values_to = "value") %>% 
+  mutate(Cluster = recode(Cluster, "1" = "Sensitive", "2" = "Unaware", "3" = "Compulsive")) %>%
+  group_by(Cluster)
+
+fig1_new <- Fig1data %>%
+  mutate(Cluster = recode(Cluster, "1" = "Sensitive", "2" = "Unaware", "3" = "Compulsive")) %>%
+  group_by(Cluster)
+
+fig1b <- ggplot(fig1data_mean, aes(x = reorder(pref, match(pref, c("mean(Pref_UnpB)", "mean(Pref_Pun1)", "mean(Pref_Pun2)", "mean(Pref_Pun3)", "mean(Pref_Rev)"))), y = value, color = Cluster, group = Cluster)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Pref", y = "Value") +
+  scale_color_discrete() +
+  scale_y_continuous(limits = c(0, 1), labels = percent_format()) +
+  geom_text(data = filter(fig1_p, !is.na(asterisks)),
+            aes(label = asterisks), y = 0.6, vjust = -5)
+
+print(fig1b)
+```
+This time, all question in the above is solved. but when we compared this graph with the orignial figure 1B in the paper, we found that they had more asterisks in the graph than we did. We then went back to the paper trying to find out what are the other asterisks for. 
+
+```{r}
+
+fig1_cluster<- fig1_new %>%
+  pivot_wider(names_from = cluster, values_from = starts_with("pref_"))
+
+
+sensitive_aov1 <- aov(pref~sensitive, fig1_cluster)
+print(summary(UnpB_aov1))
+
+
+
+
+
+
+```
+
+
+
+
+
